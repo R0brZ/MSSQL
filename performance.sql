@@ -101,3 +101,77 @@ SELECT TOP 100
 FROM sys.dm_exec_query_stats qs
 CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) as qt
 ORDER BY [Average Time Blocked (s)] DESC;
+
+
+
+-- * Find most executed queries by number of executions (repetitions)
+SELECT TOP 10 [Execution count] = execution_count,
+    [Individual Query] = SUBSTRING (
+        qt.text,
+        qs.statement_start_offset / 2 + 1,
+        (
+            CASE
+                WHEN qs.statement_end_offset = -1 THEN LEN(CONVERT(NVARCHAR(MAX), qt.text)) * 2
+                ELSE qs.statement_end_offset
+            END - qs.statement_start_offset
+        ) / 2
+    ),
+    [Parent Query] = qt.text,
+    DatabaseName = DB_NAME(qt.dbid)
+FROM sys.dm_exec_query_stats qs
+    CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) as qt
+ORDER BY [Execution count] DESC;
+
+
+
+-- * Find top queries by average CPU
+SELECT TOP 100 [Average CPU (s)] = total_worker_time / (qs.execution_count * 1000000),
+    --Unit: sec
+    [Total CPU (s)] = total_worker_time / 1000000,
+    [Execution count] = qs.execution_count,
+    qs.last_execution_time,    -- quote text into CSV friendly format
+    [Individual Query] = '"' + SUBSTRING (
+        qt.text,
+        qs.statement_start_offset / 2 + 1,
+        (
+            CASE
+                WHEN qs.statement_end_offset = -1 THEN LEN(CONVERT(NVARCHAR(MAX), qt.text)) * 2
+                ELSE qs.statement_end_offset
+            END - qs.statement_start_offset
+        ) / 2
+    ) + '"',    -- quote text into CSV friendly format
+    [Parent Query] = '"' + qt.text + '"',
+    DatabaseName = DB_NAME(qt.dbid)
+FROM sys.dm_exec_query_stats qs
+    CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) as qt
+ORDER BY [Average CPU (s)] DESC;
+
+
+
+-- * Find top queries by total CPU 
+SELECT TOP 100 [Average CPU (s)] = total_worker_time / (qs.execution_count * 1000000),
+    [Total CPU (s)] = total_worker_time / 1000000,
+    [Execution count] = qs.execution_count, -- quote text into CSV friendly format
+    [Individual Query] = '"' + SUBSTRING (
+        qt.text,
+        qs.statement_start_offset / 2 + 1,
+        (
+            CASE
+                WHEN qs.statement_end_offset = -1 THEN LEN(CONVERT(NVARCHAR(MAX), qt.text)) * 2
+                ELSE qs.statement_end_offset
+            END - qs.statement_start_offset
+        ) / 2
+    ) + '"', -- quote text into CSV friendly format
+    [Parent Query] = '"' + qt.text + '"',
+    DatabaseName = DB_NAME(qt.dbid)
+FROM sys.dm_exec_query_stats qs
+    CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) as qt
+ORDER BY [Total CPU (s)] DESC;
+
+
+
+-- * list of all current traces
+select * from sys.traces
+
+
+
