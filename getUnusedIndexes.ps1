@@ -11,11 +11,14 @@ $dbs.name | % {
         SELECT DatabaseName = DB_NAME(),
             TableName = OBJECT_NAME(s.[object_id]),
             IndexName = i.name,
-            user_updates,
-            system_updates
+            [Index size (KB)] = SUM(sz.[used_page_count]) OVER(PARTITION BY (s.[object_id]), i.name) * 8,
+            s.user_updates,
+            s.system_updates
         FROM sys.dm_db_index_usage_stats s
             INNER JOIN sys.indexes i ON s.[object_id] = i.[object_id]
             AND s.index_id = i.index_id
+            INNER JOIN sys.dm_db_partition_stats sz ON i.[object_id] = sz.[object_id]
+            AND i.index_id = sz.index_id
         WHERE s.database_id = DB_ID()
             AND OBJECTPROPERTY(s.[object_id], 'IsMsShipped') = 0
             AND user_seeks = 0
@@ -30,3 +33,15 @@ $unusedIndexes | Format-Table -AutoSize
 if ($exportCSV -eq $true) {
     $unusedIndexes | Export-Csv -Delimiter ';' -Path "$csvExportPath\$csvExportFileName"
 }
+
+$totalUnusedIndexSizeInMB = ($unusedIndexes | measure 'Index size (KB)' -sum).sum/1024
+
+Write-Host "Total size of unused indexes' size:  $totalUnusedIndexSizeInMB MB"
+
+$unusedIndexes | Group-Object -Property databasename | % {
+    [PSCustomObject]@{
+        DatabaseName = $_.Name
+        UnusedIndexSizeMB = [int]($_.Group | measure 'Index size (KB)' -sum).sum
+        Count = ($_.Group | measure).count
+    }
+} | Sort-Object UnusedIndexSizeMB -Descending
