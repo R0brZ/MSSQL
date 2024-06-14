@@ -26,6 +26,28 @@ INNER JOIN    sys.dm_db_missing_index_details d
        ON d.index_handle = g.index_handle
 ORDER BY [Total Cost] DESC;
 
+-- * top costly missing indexes and the query texts that missed them
+SELECT  TOP 100
+        [Total Cost]  = ROUND(s.avg_total_user_cost * s.avg_user_impact * (s.user_seeks + s.user_scans),0) 
+        , s.avg_user_impact
+        , TableName = statement
+        , [EqualityUsage] = equality_columns 
+        , [InequalityUsage] = inequality_columns
+        , [Include Cloumns] = included_columns
+        , s.unique_compiles        
+        ,s.last_user_seek
+        ,s.user_seeks
+        --,DB_NAME(sql_text.dbid ) AS DatabaseName
+        ,sql_text.text
+FROM        sys.dm_db_missing_index_groups g 
+INNER JOIN    sys.dm_db_missing_index_group_stats s 
+       ON s.group_handle = g.index_group_handle 
+INNER JOIN    sys.dm_db_missing_index_details d 
+       ON d.index_handle = g.index_handle
+INNER JOIN sys.dm_db_missing_index_group_stats_query q
+       ON q.group_handle = g.index_group_handle
+CROSS APPLY sys.dm_exec_sql_text(q.last_sql_handle) AS sql_text
+ORDER BY [Total Cost] DESC;
 
 
 -- * top 100 costly missing indexes on a specific db ID
