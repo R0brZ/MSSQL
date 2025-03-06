@@ -79,7 +79,7 @@ Between $($Last.StartTime) - $($First.StartTime) in $($Diff | select days,hours,
         }
         if ($OutputFolder) {
             if (!(Test-Path "$OutputFolder")) { New-Item "$OutputFolder" -ItemType Directory }
-            $AllResult | Export-Csv "$OutputFolder\$(Get-Date -Format yyyyMMdd-HHmm)_TimeSpentWithFileGrowth.csv"
+            $AllResult | Export-Csv "$OutputFolder\$(Get-Date -Format yyyyMMdd-HHmm)_TimeSpentWithFileGrowth.csv" -Delimiter ';'
         }
         else {
             $AllResult | ft
